@@ -28,7 +28,10 @@ import txosc
 import txosc.dispatch
 import txosc.async
 from time import time
+import RPi.GPIO as gpio
 
+
+GPIO.setmode(GPIO.BCM)
 
 def unhandled(message, address):
     print "%s from %s @ %s" % (message, address, str(time()))
@@ -39,7 +42,16 @@ class receiver(object):
         self.receiver = txosc.dispatch.Receiver()
         self._server_port = reactor.listenUDP(port, txosc.async.DatagramServerProtocol(self.receiver))
         self.safety = False
+        self.left_pin = 4
+        self.left_state = gpio.LOW
+        self.right_pin = 5
+        self.right_state = gpio.HIGH
+        self.states = {0.0: gpio.LOW, 1.0: gpio.HIGH}
+
         host = "localhost"
+
+        GPIO.setup(self.left_pin,  GPIO.OUT, initial=self.left_state)
+        GPIO.setup(self.right_pin, GPIO.OUT, initial=self.right_state)
 
         print "Listening on osc.udp://%s:%s" % (host, port)
         
@@ -49,15 +61,22 @@ class receiver(object):
 
         self.receiver.setFallback(unhandled)
 
+
     def left_handler(self, message, address):
         if self.safety:
-            print 'left_handler'
-            print '    Got %s from %s' % (message, address)
+            #print 'left_handler'
+            #print '    Got %s from %s' % (message, address)
+            self.left_state = self.states[message.getValues()[0]]
+            gpio.output(self.left_pin, self.left_state)
+
 
     def right_handler(self, message, address):
         if self.safety:
-            print 'right_handler'
-            print '    Got %s from %s' % (message, address)
+            #print 'right_handler'
+            #print '    Got %s from %s' % (message, address)
+            self.right_state = self.states[message.getValues()[0]]
+            gpio.output(self.right_pin, self.right_state)
+
 
     def safety_handler(self, message, address):
         #print 'safety_handler'
